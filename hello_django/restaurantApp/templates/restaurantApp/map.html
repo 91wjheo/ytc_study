@@ -1,0 +1,253 @@
+{% extends 'restaurantApp/base.html' %}
+{% block content %}
+<!---->
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="#">Home</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Add Page</li>
+  </ol>
+</nav>
+
+<!--지도 표시될 부분 -->
+<!--<div id="map" style="width:500px;height:400px;"></div>-->
+<div class="container">
+
+    <!-- 지도, 정보부분-->
+    <div class="row">
+        <div id="map" class="col-sm-8 float-left" style="width:600px;height:450px;"></div>
+        <div class="col-sm-4">
+
+            <div class="row">
+                <input id="searchKwd" class="ml-3 col-sm-6"name="search" >
+                <button id="searchBtn" type="button" class="ml-1 btn btn-warning col-sm-4">검색</button>
+            </div>
+
+            <hr style="border: solid 1px lightgrey;">
+
+            <!--클릭한 위치 정보 입력부분.-->
+            <form method="post" action="./add">
+                {% csrf_token %}
+                <label for="name">이름</label>
+                <input class="form-control" id="name" name="name">
+
+                <label for="phone">전화번호</label>
+                <input class="form-control" id="phone" name="phone" >
+
+                <label for="address">주소</label>
+                <input class="form-control" id="address" name="address">
+
+                <label for="lat">위도</label>
+                <input class="form-control" id="lat" name="lat" readonly >
+
+                <label for="lng">경도</label>
+                <input class="form-control" id="lng" name="lng" readonly >
+
+                <div class="mt-3"></div>
+                <button id="listBtn" type="button" class="btn btn-primary">목록</button>
+                <button id="insertBtn" type="submit" class="btn btn-success float-right">등록</button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // 전체 목록 페이지로 이동
+    document.getElementById('listBtn').addEventListener('click', function(e){
+        self.location = "/restaurantApp/map/list_all";
+    })
+
+
+
+
+    // 지도생성할 div태그
+    var container = document.getElementById('map');
+
+    // 지도생성시 옵션
+    var options = {
+        center: new kakao.maps.LatLng(33.450701, 126.570667),
+        level: 5
+    };
+
+    // 지도 생성
+    var map = new kakao.maps.Map(container, options);
+
+    // 마커객체
+    var marker;
+
+    // 장소 검색 객체를 생성합니다
+    var ps = new kakao.maps.services.Places();
+
+    // 장소검색한 마커를 클릭하면 장소명을 표출할 인포윈도우 입니다
+    var infowindow = new kakao.maps.InfoWindow({zIndex:1});
+
+    var myPositionInfowindow = new kakao.maps.InfoWindow({zIndex:1});
+
+    document.getElementById('searchBtn').addEventListener('click', function(e){
+        // 입력된 키워드 가져옴searchKwd
+        var keyword = document.getElementById('searchKwd').value;
+        console.log(keyword);
+        // 키워드로 장소를 검색합니다.
+        ps.keywordSearch(keyword, placesSearchCB);
+    })
+
+    // 키워드로 장소를 검색합니다 --> 화면에서 입력받도록 수정! 즉 검색버튼 클릭이벤트 핸들러를 만들면된다.
+    // ps.keywordSearch('판교정자동 맛집', placesSearchCB);
+
+    // 키워드 검색 완료 시 호출되는 콜백함수 입니다
+    function placesSearchCB (data, status, pagination) {
+        if (status === kakao.maps.services.Status.OK) {
+
+            // 검색된 장소 위치를 기준으로 지도 범위를 재설정하기위해
+            // LatLngBounds 객체에 좌표를 추가합니다
+            var bounds = new kakao.maps.LatLngBounds();
+
+            for (var i=0; i<data.length; i++) {
+                displaySearchResultMarker(data[i]);
+                bounds.extend(new kakao.maps.LatLng(data[i].y, data[i].x));
+            }
+
+            // 검색된 장소 위치를 기준으로 지도 범위를 재설정합니다
+            map.setBounds(bounds);
+        }
+    }
+
+
+
+
+    if (navigator.geolocation) {
+
+        // GeoLocation을 이용해서 접속 위치를 얻어옵니다
+        navigator.geolocation.getCurrentPosition(function (position) {
+
+            var lat = position.coords.latitude, // 위도
+                lon = position.coords.longitude; // 경도
+
+            var locPosition = new kakao.maps.LatLng(lat, lon); // 마커가 표시될 위치를 geolocation으로 얻어온 좌표로 생성합니다
+			//var message = '<div style="padding:5px;">현재 내 위치</div>'; // 인포윈도우에 표시될 내용입니다
+
+            // 마커와 인포윈도우를 표시합니다
+            displayMyPositionMarker(locPosition);
+
+        });
+
+    } else { // HTML5의 GeoLocation을 사용할 수 없을때 마커 표시 위치와 인포윈도우 내용을 설정합니다
+
+        var locPosition = new kakao.maps.LatLng(33.450701, 126.570667);
+		// var message = 'geolocation을 사용할수 없어요..';
+
+        displayMyPositionMarker(locPosition);
+    }
+
+
+    // HTML5의 geolocation으로 사용할 수 있는지 확인합니다
+    function displayMyPositionMarker(locPosition) {
+        // 지도에 마커와 인포윈도우를 표시하는 함수입니다
+
+
+        var imageSrc = 'https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcSNbtVThANA8zaA3B5oawFAWkwoWXSX3GjEy6iYd8VFcBltmCkF', // 마커이미지의 주소입니다
+            imageSize = new kakao.maps.Size(30, 30), // 마커이미지의 크기입니다
+            imageOption = {offset: new kakao.maps.Point(27, 69)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
+
+        // 마커의 이미지정보를 가지고 있는 마커이미지를 생성합니다
+        var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption)
+        // markerPosition = new kakao.maps.LatLng(37.54699, 127.09598); // 마커가 표시될 위치입니다
+
+
+        // 마커를 생성합니다
+        // var marker = new kakao.maps.Marker({
+        marker = new kakao.maps.Marker({
+            map: map,
+            position: locPosition,
+            image: markerImage
+        });
+
+        var iwContent = "내 위치", // 인포윈도우에 표시할 내용
+            iwRemoveable = true;
+
+        // 인포윈도우를 생성합니다
+        var infowindow = new kakao.maps.InfoWindow({
+            content: iwContent,
+            removable: iwRemoveable
+        });
+
+
+        // 인포윈도우를 마커위에 표시합니다
+        infowindow.open(map, marker);
+
+        // 지도 중심좌표를 접속위치로 변경합니다
+        map.setCenter(locPosition);
+
+        // 위도 경도 화면 표시시
+        var resultLat = document.getElementById('lat');// 위도
+        var resultLng = document.getElementById('lng');// 경도
+        resultLat.value = locPosition.Ga;
+        resultLng.value = locPosition.Ha;
+    }
+
+
+    function displaySearchResultMarker(place){
+
+        console.dir(place);
+       // 마커를 생성하고 지도에 표시합니다
+        var marker = new kakao.maps.Marker({
+            map: map,
+            position: new kakao.maps.LatLng(place.y, place.x)
+        });
+
+        // 마커에 마우스오버 이벤트를 등록합니다
+        kakao.maps.event.addListener(marker, 'mouseover', function() {
+            // 마커를 클릭하면 장소명이 인포윈도우에 표출됩니다
+            infowindow.setContent('<div style="padding:5px;font-size:12px;">' + place.place_name + '</div>');
+            infowindow.open(map, marker);
+        });
+
+        // 마커에 마우스아웃 이벤트를 등록합니다
+        kakao.maps.event.addListener(marker, 'mouseout', function() {
+            // 마커에 마우스아웃 이벤트가 발생하면 인포윈도우를 제거합니다
+            infowindow.close();
+        });
+
+        // 마커에 마우스클릭 이벤트를 등록합니다
+        kakao.maps.event.addListener(marker, 'click', function() {
+            // place정보를 input 태그에 표시
+            var name = document.getElementById('name');
+            var phone = document.getElementById('phone');
+            var address = document.getElementById('address');
+            var lat = document.getElementById('lat');
+            var lng = document.getElementById('lng');
+
+            name.value = place.place_name;
+            phone.value = place.phone;
+            address.value = place.address_name;
+            lat.value = place.x;
+            lng.value = place.y;
+        });
+
+
+
+    }
+
+    // 지도에 클릭 이벤트를 등록합니다
+    // 지도를 클릭하면 마지막 파라미터로 넘어온 함수를 호출합니다
+
+    kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
+
+        // 클릭한 위도, 경도 정보를 가져옵니다
+        var latlng = mouseEvent.latLng;
+
+        // 마커 위치를 클릭한 위치로 옮깁니다
+        marker.setPosition(latlng);
+		map.setCenter(latlng); // 해당좌표로 중심으로 지도이동
+
+        var resultLat = document.getElementById('lat');// 위도
+        var resultLng = document.getElementById('lng');// 경도
+        resultLat.value = latlng.Ga;
+        resultLng.value = latlng.Ha;
+
+    })
+
+</script>
+
+
+{% endblock %}

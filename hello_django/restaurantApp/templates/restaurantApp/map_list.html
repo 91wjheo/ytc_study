@@ -1,0 +1,34 @@
+{% extends 'restaurantApp/base.html' %}
+{% block content %}
+<h1>YTC FOREVER</h1>
+
+<table class="table table-hover">
+    <thead>
+    <tr>
+        <th scope="col">#</th>
+        <th scope="col">NAME</th>
+        <th scope="col">PHONE</th>
+        <th scope="col">ADDRESS</th>
+        <th scope="col">LAT</th>
+        <th scope="col">LNG</th>
+        <th scope="col">CREATED</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for restaurant in restaurants %}
+    <tr>
+<!--        <th scope="row">{{forloop.counter}}</th>-->
+        <th scope="row">{{restaurant.pk}}</th>
+        <!-- url namespace가 first인 곳의 name이 post_detail인 곳에 매핑된다. -->
+        <td>{{restaurant.name}}</td>
+        <td>{{restaurant.phone}}</td>
+        <td>{{restaurant.address}}</td>
+        <td>{{restaurant.lat}}</td>
+        <td>{{restaurant.lng}}</td>
+        <td>{{restaurant.created}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
