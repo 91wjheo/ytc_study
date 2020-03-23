@@ -16,7 +16,10 @@ def map_add(request):
     phone = request.POST['phone']
     address = request.POST['address']
     lat = request.POST['lat']
-    lng = request.POST['lng']
+    lng = request
+
+
+
 
     print(name, phone, address, lat, lng)
 
